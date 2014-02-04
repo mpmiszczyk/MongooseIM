@@ -7,6 +7,24 @@ EJD_PRIV_MIB = $(EJD_PRIV)/mibs
 EJD_MIB = $(EJABBERD_DIR)/mibs
 DEVNODES = node1 node2
 
+.PHONY: last_test
+last_test: rebuild
+	make quicktest TESTSPEC=last.spec
+
+.PHONY: rebuild
+rebuild: stop remove devrel start
+
+stop:
+	dev/ejabberd_node1/bin/ejabberd stop || true
+
+remove:
+	rm -f ebin/*.beam
+	rm -rf dev
+
+start:
+	dev/ejabberd_node1/bin/ejabberd start
+
+
 all: deps compile
 
 compile: rebar generate_snmp_header
