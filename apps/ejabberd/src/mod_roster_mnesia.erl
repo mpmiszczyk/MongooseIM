@@ -78,7 +78,8 @@ rosters_by_us( US ) when size(US) =:= 2 ->
       Rousters :: list( roster() ).
 rosters_without_groups( US ) ->
     %% This one can not be optymized in mnesia
-    rosters_by_us( US ).
+    R = rosters_by_us( US ),
+    _return = R#roster{ groups = []}.
 
 
 -spec roster( UserServeJid ) -> MightBeRoster when
