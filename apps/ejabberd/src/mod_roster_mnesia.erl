@@ -78,15 +78,15 @@ rosters_by_us( US ) when size(US) =:= 2 ->
       Rousters :: list( roster() ).
 rosters_without_groups( US ) ->
     %% This one can not be optymized in mnesia
-    R = rosters_by_us( US ),
-    _return = R#roster{ groups = []}.
+    rosters_by_us( US ).
+
 
 
 -spec roster( UserServeJid ) -> MightBeRoster when
       UserServeJid :: usj(),
       MightBeRoster :: {ok, roster() } | not_found.
 roster( USJ ) when size( USJ ) =:= 3 ->
-    case mnesia:read(roster, USJ ) of
+    case catch mnesia:dirty_read(roster, USJ ) of
         [ Rouster ] ->
             {ok, Rouster};
         [] ->
