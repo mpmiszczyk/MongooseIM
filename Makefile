@@ -8,7 +8,7 @@ EJD_MIB = $(EJABBERD_DIR)/mibs
 DEVNODES = node1 node2
 
 .PHONY: last_test
-last_test: rebuild
+last_test: 
 	make quicktest TESTSPEC=last.spec
 
 .PHONY: rebuild
