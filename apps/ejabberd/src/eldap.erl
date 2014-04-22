@@ -504,16 +504,14 @@ present(Attribute) ->
 -type substr() :: [{initial | any | final, binary()}].
 -type 'SubstringFilter'() ::
         #'SubstringFilter'{type :: binary(),
-                           substrings :: {'SubstringFilter_substrings',
-                                          substr()}}.
+                           substrings :: substr()}.
 
 -type substrings() :: {substrings, 'SubstringFilter'()}.
 -spec substrings(binary(), substr()) -> substrings().
 
 substrings(Type, SubStr) ->
-    Ss = {'SubstringFilter_substrings', SubStr},
     {substrings,
-     #'SubstringFilter'{type = Type, substrings = Ss}}.
+     #'SubstringFilter'{type = Type, substrings = SubStr}}.
 
 -type match_opts() :: [{matchingRule | type, binary()} |
                        {dnAttributes, boolean()}].
@@ -1077,15 +1075,22 @@ cmd_timeout(Timer, Id, S) ->
 %%% Polish the returned search result
 %%%
 
+str_to_bin([L]) when is_list(L) ->
+    [iolist_to_binary(L)];
+str_to_bin(L) when is_list(L) ->
+    iolist_to_binary(L);
+str_to_bin(L) ->
+    L.
+
 polish(Entries) -> polish(Entries, [], []).
 
 polish([H | T], Res, Ref)
     when is_record(H, 'SearchResultEntry') ->
     ObjectName = H#'SearchResultEntry'.objectName,
-    F = fun ({_, A, V}) -> {A, V} end,
+    F = fun ({_, A, V}) -> {str_to_bin(A), str_to_bin(V)} end,
     Attrs = lists:map(F, H#'SearchResultEntry'.attributes),
     polish(T,
-	   [#eldap_entry{object_name = ObjectName,
+	   [#eldap_entry{object_name = iolist_to_binary(ObjectName),
 			 attributes = Attrs}
 	    | Res],
 	   Ref);

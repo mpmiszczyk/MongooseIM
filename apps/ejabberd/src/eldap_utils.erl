@@ -94,9 +94,9 @@ get_ldap_attr(LDAPAttr, Attributes) ->
 
 get_user_part(String, Pattern) ->
     F = fun(S, P) ->
-		First = string:str(binary_to_list(P), binary_to_list(<<"%u">>)),
+        {First,_} = binary:match(P,<<"%u">>),
 		TailLength = byte_size(P) - (First+1),
-		iolist_to_binary(string:sub_string(binary_to_list(S), First, byte_size(S) - TailLength))
+        binary:part(S,First,byte_size(S)-TailLength-First+1)
 	end,
     case catch F(String, Pattern) of
 	    {'EXIT', _} ->
@@ -115,6 +115,22 @@ get_user_part(String, Pattern) ->
             end
     end.
 
+
+generate_substring_list(Value)->
+    Splits = binary:split(Value,<<"*">>,[global]),
+    {Acc,S}=case Splits of
+        [<<"">>|T]->{[],T};
+        [H|T]-> {[{initial,H}],T}
+    end,
+    lists:reverse(generate_substring_list(S,Acc)).
+generate_substring_list([<<"">>],Acc)->
+    Acc;
+generate_substring_list([Last],Acc)->
+    [{final,Last}|Acc];
+generate_substring_list([H|T],Acc)->
+    generate_substring_list(T,[{any,H}|Acc]).
+
+
 -spec make_filter([{binary(), [binary()]}], [{binary(), binary()}]) -> any().
 
 make_filter(Data, UIDs) ->
@@ -131,9 +147,10 @@ make_filter(Data, UIDs) ->
 				   _ -> []
 			       end;
 			   _ when Value /= <<"">> ->
-			       [eldap:substrings(
-                                  Name,
-                                  [{any, Value}])];
+                    case binary:match(Value,<<"*">>) of
+                        nomatch -> [eldap:equalityMatch(Name,Value)];
+                        _ -> [eldap:substrings(Name,generate_substring_list(Value))]
+                    end;
 			   _ ->
 			       []
 		       end
@@ -148,8 +165,8 @@ make_filter(Data, UIDs) ->
 -spec case_insensitive_match(binary(), binary()) -> boolean().
 
 case_insensitive_match(X, Y) ->
-    X1 = iolist_to_binary(string:to_lower(binary_to_list(X))),
-    Y1 = iolist_to_binary(string:to_lower(binary_to_list(Y))),
+    X1 = string:to_lower(binary_to_list(X)),
+    Y1 = string:to_lower(binary_to_list(Y)),
     if
 	X1 == Y1 -> true;
 	true -> false
@@ -218,10 +235,10 @@ prepare_opt_val(Opt, Val, F, Default) ->
           end,
     case Res of
         {'EXIT', _} ->
-            ?INFO_MSG("Configuration problem:~n"
-                      "** Option: ~s~n"
-                      "** Invalid value: ~s~n"
-                      "** Using as fallback: ~s",
+            ?ERROR_MSG("Configuration problem:~n"
+                      "** Option: ~p~n"
+                      "** Invalid value: ~p~n"
+                      "** Using as fallback: ~p",
                       [ Opt,
                         Val,
                         Default]),

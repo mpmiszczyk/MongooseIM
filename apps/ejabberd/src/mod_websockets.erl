@@ -25,7 +25,7 @@
 
 %% ejabberd_socket compatibility
 -export([starttls/2, starttls/3,
-         compress/1, compress/2,
+         compress/1, compress/3,
          reset_stream/1,
          send/2,
          send_xml/2,
@@ -155,6 +155,7 @@ terminate(_Reason, _Req, _State) ->
 websocket_init(Transport, Req, Opts) ->
     ?DEBUG("websocket_init: ~p~n", [{Transport, Req, Opts}]),
     {Peer, NewReq} = cowboy_req:peer(Req),
+    NewReq2 = cowboy_req:set_resp_header("Sec-WebSocket-Protocol", "xmpp", NewReq),
     SocketData = #websocket{pid=self(),
                             peername = Peer},
     case ejabberd_c2s:start({?MODULE, SocketData}, Opts) of
@@ -163,10 +164,10 @@ websocket_init(Transport, Req, Opts) ->
             {ok, Parser} = exml_stream:new_parser(),
             State = #ws_state{c2s_pid = Pid,
                               parser = Parser},
-            {ok, NewReq, State};
+            {ok, NewReq2, State};
         {error, Reason} ->
             ?WARNING_MSG("c2s start failed: ~p", [Reason]),
-            {shutdown, NewReq}
+            {shutdown, NewReq2}
     end.
 
 
@@ -228,9 +229,9 @@ starttls(_SocketData, _TLSOpts, _Data) ->
     throw({error, tls_not_allowed_on_websockets}).
 
 compress(SocketData) ->
-    compress(SocketData, <<>>).
+    compress(SocketData, <<>>, 0).
 
-compress(_SocketData, _Data) ->
+compress(_SocketData, _Data, _InflateSizeLimit) ->
     throw({error, compression_not_allowed_on_websockets}).
 
 reset_stream(#websocket{pid = Pid} = SocketData) ->
